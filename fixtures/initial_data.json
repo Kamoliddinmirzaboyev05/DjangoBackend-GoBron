@@ -1,0 +1,134 @@
+[
+  {
+    "model": "fields.footballfield",
+    "pk": 1,
+    "fields": {
+      "name": "Chilonzor Sport Arena",
+      "description": "Zamonaviy sun'iy o'tli futbol maydoni. Kiyinish xonalari, dush va kafe mavjud. Kechasi yoritilgan.",
+      "address": "Chilonzor tumani, 9-kvartal, 15-uy",
+      "city": "Toshkent",
+      "price_per_hour": "150000.00",
+      "opening_time": "08:00:00",
+      "closing_time": "23:00:00",
+      "is_active": true,
+      "cover_image": "",
+      "created_at": "2024-01-10T08:00:00Z",
+      "updated_at": "2024-01-10T08:00:00Z"
+    }
+  },
+  {
+    "model": "fields.footballfield",
+    "pk": 2,
+    "fields": {
+      "name": "Yunusobod FC Ground",
+      "description": "Professional darajadagi sun'iy o'tli maydon. Tribuna va VIP xonalar mavjud. Parking bepul.",
+      "address": "Yunusobod tumani, 19-kvartal",
+      "city": "Toshkent",
+      "price_per_hour": "200000.00",
+      "opening_time": "07:00:00",
+      "closing_time": "22:00:00",
+      "is_active": true,
+      "cover_image": "",
+      "created_at": "2024-01-15T09:00:00Z",
+      "updated_at": "2024-01-15T09:00:00Z"
+    }
+  },
+  {
+    "model": "fields.footballfield",
+    "pk": 3,
+    "fields": {
+      "name": "Samarqand Golden Field",
+      "description": "Samarqand shahrining eng yaxshi futbol maydoni. Keng maydon, qulay joylashuv.",
+      "address": "Registon ko'chasi, 42",
+      "city": "Samarqand",
+      "price_per_hour": "120000.00",
+      "opening_time": "08:00:00",
+      "closing_time": "22:00:00",
+      "is_active": true,
+      "cover_image": "",
+      "created_at": "2024-02-01T10:00:00Z",
+      "updated_at": "2024-02-01T10:00:00Z"
+    }
+  },
+  {
+    "model": "fields.fieldamenity",
+    "pk": 1,
+    "fields": {
+      "field": 1,
+      "name": "Kiyinish xonasi",
+      "icon": "👕"
+    }
+  },
+  {
+    "model": "fields.fieldamenity",
+    "pk": 2,
+    "fields": {
+      "field": 1,
+      "name": "Dush",
+      "icon": "🚿"
+    }
+  },
+  {
+    "model": "fields.fieldamenity",
+    "pk": 3,
+    "fields": {
+      "field": 1,
+      "name": "Kafe",
+      "icon": "☕"
+    }
+  },
+  {
+    "model": "fields.fieldamenity",
+    "pk": 4,
+    "fields": {
+      "field": 1,
+      "name": "Parking",
+      "icon": "🅿️"
+    }
+  },
+  {
+    "model": "fields.fieldamenity",
+    "pk": 5,
+    "fields": {
+      "field": 2,
+      "name": "Kiyinish xonasi",
+      "icon": "👕"
+    }
+  },
+  {
+    "model": "fields.fieldamenity",
+    "pk": 6,
+    "fields": {
+      "field": 2,
+      "name": "Parking",
+      "icon": "🅿️"
+    }
+  },
+  {
+    "model": "fields.fieldamenity",
+    "pk": 7,
+    "fields": {
+      "field": 2,
+      "name": "VIP xona",
+      "icon": "⭐"
+    }
+  },
+  {
+    "model": "fields.fieldamenity",
+    "pk": 8,
+    "fields": {
+      "field": 3,
+      "name": "Kiyinish xonasi",
+      "icon": "👕"
+    }
+  },
+  {
+    "model": "fields.fieldamenity",
+    "pk": 9,
+    "fields": {
+      "field": 3,
+      "name": "Dush",
+      "icon": "🚿"
+    }
+  }
+]
