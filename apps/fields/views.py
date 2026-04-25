@@ -8,15 +8,19 @@ from rest_framework.filters import SearchFilter, OrderingFilter
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.parsers import MultiPartParser, FormParser
 
 from .filters import FootballFieldFilter
-from .models import FootballField, TimeSlot
+from .models import FootballField, TimeSlot, FieldImage
 from .serializers import (
     FootballFieldListSerializer,
     FootballFieldDetailSerializer,
+    FootballFieldWriteSerializer,
+    FieldImageSerializer,
     TimeSlotSerializer,
 )
 from .utils import generate_slots_for_field_date, get_available_dates
+from apps.accounts.permissions import IsAdminRole
 
 
 @extend_schema(tags=['Fields'])
@@ -126,3 +130,80 @@ class FieldAvailableDatesView(APIView):
             'advance_booking_days': field.advance_booking_days,
             'available_dates': [str(d) for d in allowed_dates],
         })
+
+
+@extend_schema(tags=['Fields Admin'])
+class MyFootballFieldView(generics.RetrieveUpdateAPIView):
+    """Admin o'ziga tegishli maydonni ko'rishi va tahrirlashi (rasm yuklash bilan)."""
+    permission_classes = [IsAuthenticated, IsAdminRole]
+    serializer_class = FootballFieldWriteSerializer
+
+    def get_object(self):
+        try:
+            return FootballField.objects.get(owner=self.request.user)
+        except FootballField.DoesNotExist:
+            return Response(
+                {'detail': 'Sizga biriktirilgan maydon topilmadi.'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+    def get_serializer_class(self):
+        if self.request.method == 'GET':
+            return FootballFieldDetailSerializer
+        return FootballFieldWriteSerializer
+
+
+@extend_schema(tags=['Fields Admin'])
+class FieldImageDeleteView(generics.DestroyAPIView):
+    """Admin maydonidagi rasmni o'chirishi."""
+    permission_classes = [IsAuthenticated, IsAdminRole]
+    queryset = FieldImage.objects.all()
+
+    def get_queryset(self):
+        return self.queryset.filter(field__owner=self.request.user)
+
+
+@extend_schema(tags=['Fields Admin'])
+class FieldImageUploadView(APIView):
+    """Admin o'z maydoniga rasm(lar) yuklashi uchun maxsus endpoint."""
+    permission_classes = [IsAuthenticated, IsAdminRole]
+    parser_classes = [MultiPartParser, FormParser]
+
+    @extend_schema(
+        request={
+            'multipart/form-data': {
+                'type': 'object',
+                'properties': {
+                    'images': {
+                        'type': 'array',
+                        'items': {'type': 'string', 'format': 'binary'},
+                        'description': 'Bir yoki bir nechta rasm fayllari'
+                    }
+                }
+            }
+        },
+        responses={201: FieldImageSerializer(many=True)}
+    )
+    def post(self, request, *args, **kwargs):
+        try:
+            field = FootballField.objects.get(owner=request.user)
+        except FootballField.DoesNotExist:
+            return Response(
+                {'detail': 'Sizga biriktirilgan maydon topilmadi.'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        images = request.FILES.getlist('images')
+        if not images:
+            return Response(
+                {'detail': 'Hech qanday rasm yuborilmadi.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        created_images = []
+        for img_file in images:
+            img_obj = FieldImage.objects.create(field=field, image=img_file)
+            created_images.append(img_obj)
+
+        serializer = FieldImageSerializer(created_images, many=True, context={'request': request})
+        return Response(serializer.data, status=status.HTTP_201_CREATED)

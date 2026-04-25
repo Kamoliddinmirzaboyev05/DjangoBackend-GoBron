@@ -82,15 +82,23 @@ class FootballFieldDetailSerializer(serializers.ModelSerializer):
 
 
 class FootballFieldWriteSerializer(serializers.ModelSerializer):
+    uploaded_images = serializers.ListField(
+        child=serializers.ImageField(allow_empty_file=False, use_url=False),
+        write_only=True,
+        required=False,
+        help_text="Bir nechta rasm yuklash uchun"
+    )
+
     class Meta:
         model = FootballField
         fields = (
             'id', 'owner', 'name', 'description', 'address', 'city',
             'location_url', 'phone', 'price_per_hour',
             'opening_time', 'closing_time', 'advance_booking_days',
-            'is_active', 'cover_image',
+            'is_active', 'cover_image', 'uploaded_images',
             'subscription_start', 'subscription_end', 'is_subscription_active',
         )
+        read_only_fields = ('owner',)
 
     def validate(self, attrs):
         opening = attrs.get('opening_time', getattr(self.instance, 'opening_time', None))
@@ -100,6 +108,22 @@ class FootballFieldWriteSerializer(serializers.ModelSerializer):
                 {'closing_time': 'Yopilish vaqti ochilish vaqtidan farq qilishi kerak.'}
             )
         return attrs
+
+    def create(self, validated_data):
+        uploaded_images = validated_data.pop('uploaded_images', [])
+        field = super().create(validated_data)
+        for image in uploaded_images:
+            FieldImage.objects.create(field=field, image=image)
+        return field
+
+    def update(self, instance, validated_data):
+        uploaded_images = validated_data.pop('uploaded_images', [])
+        field = super().update(instance, validated_data)
+        if uploaded_images:
+            # Yangi rasmlarni qo'shish (eskilarini o'chirmasdan)
+            for image in uploaded_images:
+                FieldImage.objects.create(field=field, image=image)
+        return field
 
 
 class TimeSlotSerializer(serializers.ModelSerializer):
