@@ -6,7 +6,7 @@ from unfold.forms import AdminPasswordChangeForm, UserChangeForm, UserCreationFo
 
 from .models import CustomUser
 
-
+# slkdfndlnfohado adoihaodihaoidhaoishoaidih
 @admin.register(CustomUser)
 class CustomUserAdmin(ModelAdmin, UserAdmin):
     form = UserChangeForm
