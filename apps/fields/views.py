@@ -158,6 +158,7 @@ class FieldImageDeleteView(generics.DestroyAPIView):
     """Admin maydonidagi rasmni o'chirishi."""
     permission_classes = [IsAuthenticated, IsAdminRole]
     queryset = FieldImage.objects.all()
+    serializer_class = FieldImageSerializer
 
     def get_queryset(self):
         return self.queryset.filter(field__owner=self.request.user)
