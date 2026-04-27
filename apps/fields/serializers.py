@@ -127,13 +127,16 @@ class FootballFieldWriteSerializer(serializers.ModelSerializer):
 
 
 class TimeSlotSerializer(serializers.ModelSerializer):
+    field_id = serializers.IntegerField(source='field.id', read_only=True)
+    field_name = serializers.CharField(source='field.name', read_only=True)
+    
     class Meta:
         model = TimeSlot
         fields = (
-            'id', 'field', 'date', 'start_time', 'end_time',
+            'id', 'field', 'field_id', 'field_name', 'date', 'start_time', 'end_time',
             'is_active', 'is_booked',
         )
-        read_only_fields = ('id', 'is_booked')
+        read_only_fields = ('id', 'field', 'field_id', 'field_name', 'is_booked')
 
 
 class TimeSlotAdminSerializer(serializers.ModelSerializer):

@@ -162,8 +162,13 @@ SPECTACULAR_SETTINGS = {
     'TITLE': 'Football Booking API',
     'DESCRIPTION': (
         '## Futbol maydonlarini bron qilish tizimi\n\n'
-        '**Autentifikatsiya:** Bearer JWT token ishlatiladi.\n\n'
-        '`/api/auth/login/` orqali token oling va "Authorize" tugmasini bosing.'
+        '### Autentifikatsiya qilish:\n\n'
+        '1. `/api/auth/login/` endpointiga username va password yuboring\n'
+        '2. Response dan `access` tokenni nusxalang\n'
+        '3. Yuqoridagi **"Authorize"** tugmasini bosing\n'
+        '4. Tokenni kiriting (faqat token, "Bearer" so\'zisiz)\n'
+        '5. "Authorize" tugmasini bosing\n\n'
+        '**Eslatma:** Token avtomatik ravishda barcha so\'rovlarga qo\'shiladi.'
     ),
     'VERSION': '1.0.0',
     'SERVE_INCLUDE_SCHEMA': False,
@@ -173,10 +178,14 @@ SPECTACULAR_SETTINGS = {
         'persistAuthorization': True,
         'displayOperationId': False,
         'filter': True,
+        'defaultModelsExpandDepth': 1,
+        'defaultModelExpandDepth': 1,
+        'docExpansion': 'list',
     },
     'TAGS': [
         {'name': 'Auth', 'description': 'Ro\'yxatdan o\'tish, kirish, chiqish, profil'},
         {'name': 'Fields', 'description': 'Futbol maydonlari ro\'yxati va tafsilotlari'},
+        {'name': 'Fields Admin', 'description': 'Admin: o\'z maydonlarini boshqarish'},
         {'name': 'Slots', 'description': 'Vaqt slotlari — ko\'rish va boshqarish'},
         {'name': 'Bookings', 'description': 'Bron qilish — yaratish va bekor qilish'},
         {'name': 'Admin — Fields', 'description': 'Admin: maydonlarni boshqarish'},
@@ -184,16 +193,6 @@ SPECTACULAR_SETTINGS = {
         {'name': 'Admin — Stats', 'description': 'Admin: statistika'},
         {'name': 'Admin — Notifications', 'description': 'Admin: bildirishnomalar'},
     ],
-    'SECURITY': [{'BearerAuth': []}],
-    'APPEND_COMPONENTS': {
-        'securitySchemes': {
-            'BearerAuth': {
-                'type': 'http',
-                'scheme': 'bearer',
-                'bearerFormat': 'JWT',
-            }
-        }
-    },
 }
 
 # Unfold Admin

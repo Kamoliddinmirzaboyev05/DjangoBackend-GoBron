@@ -1,7 +1,6 @@
 from datetime import date, timedelta
 
 from django.db.models import Sum, Count, Q
-from django.db.models.functions import TruncDate
 from django.utils import timezone
 from drf_spectacular.utils import extend_schema, OpenApiParameter
 from drf_spectacular.types import OpenApiTypes
@@ -10,6 +9,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.accounts.permissions import IsAdminRole
+from apps.accounts.models import CustomUser
 from apps.bookings.models import Booking
 from apps.bookings.serializers import BookingAdminSerializer, AdminBookingManualCreateSerializer
 from apps.fields.models import FootballField, FieldImage, FieldAmenity, TimeSlot
@@ -148,16 +148,20 @@ class AdminStatsView(APIView):
         confirmed = Booking.objects.filter(status='confirmed')
 
         def revenue(qs):
-            return float(qs.aggregate(t=Sum('total_price'))['t'] or 0)
+            total = qs.aggregate(t=Sum('total_price'))['t']
+            return float(total) if total else 0.0
 
-        # Kunlik bronlar (so'nggi 30 kun)
-        per_day = (
-            Booking.objects.filter(date__gte=last_30)
-            .annotate(day=TruncDate('date'))
-            .values('day')
-            .annotate(count=Count('id'), revenue=Sum('total_price'))
-            .order_by('day')
-        )
+        # Kunlik bronlar (so'nggi 30 kun) - sodda usul
+        per_day_data = []
+        for i in range(30):
+            day = last_30 + timedelta(days=i)
+            day_bookings = Booking.objects.filter(date=day)
+            day_revenue = day_bookings.filter(status='confirmed').aggregate(t=Sum('total_price'))['t']
+            per_day_data.append({
+                'date': str(day),
+                'bookings': day_bookings.count(),
+                'revenue': float(day_revenue) if day_revenue else 0.0,
+            })
 
         # Status bo'yicha
         status_counts = {
@@ -166,12 +170,26 @@ class AdminStatsView(APIView):
         }
 
         # Top maydonlar (bronlar soni bo'yicha)
-        top_fields = (
+        top_fields_data = []
+        fields_with_bookings = (
             Booking.objects.filter(status='confirmed')
-            .values('field__id', 'field__name')
-            .annotate(bookings=Count('id'), revenue=Sum('total_price'))
-            .order_by('-bookings')[:5]
+            .values_list('field_id', flat=True)
+            .distinct()
         )
+        
+        for field_id in fields_with_bookings[:5]:
+            field_bookings = Booking.objects.filter(field_id=field_id, status='confirmed')
+            field = FootballField.objects.get(id=field_id)
+            field_revenue = field_bookings.aggregate(t=Sum('total_price'))['t']
+            top_fields_data.append({
+                'field_id': field.id,
+                'field_name': field.name,
+                'bookings': field_bookings.count(),
+                'revenue': float(field_revenue) if field_revenue else 0.0,
+            })
+        
+        # Bronlar soni bo'yicha saralash
+        top_fields_data.sort(key=lambda x: x['bookings'], reverse=True)
 
         return Response({
             'today': {
@@ -190,26 +208,11 @@ class AdminStatsView(APIView):
                 'bookings': Booking.objects.count(),
                 'revenue': revenue(confirmed),
                 'fields': FootballField.objects.filter(is_active=True).count(),
-                'users': __import__('apps.accounts.models', fromlist=['CustomUser']).CustomUser.objects.filter(role='user').count(),
+                'users': CustomUser.objects.filter(role='user').count(),
             },
             'by_status': status_counts,
-            'per_day_last_30': [
-                {
-                    'date': str(item['day']),
-                    'bookings': item['count'],
-                    'revenue': float(item['revenue'] or 0),
-                }
-                for item in per_day
-            ],
-            'top_fields': [
-                {
-                    'field_id': item['field__id'],
-                    'field_name': item['field__name'],
-                    'bookings': item['bookings'],
-                    'revenue': float(item['revenue'] or 0),
-                }
-                for item in top_fields
-            ],
+            'per_day_last_30': per_day_data,
+            'top_fields': top_fields_data[:5],
             'unread_notifications': Notification.objects.filter(
                 recipient=request.user, is_read=False
             ).count(),

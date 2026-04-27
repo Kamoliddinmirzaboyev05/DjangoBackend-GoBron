@@ -17,10 +17,12 @@ class BookingCreateSerializer(serializers.ModelSerializer):
         write_only=True,
         label='Slot ID',
     )
+    field_id = serializers.IntegerField(write_only=True, required=False, help_text='Maydon ID (tekshirish uchun)')
+    date = serializers.DateField(write_only=True, required=False, help_text='Sana (tekshirish uchun)')
 
     class Meta:
         model = Booking
-        fields = ('id', 'slot_id', 'note')
+        fields = ('id', 'slot_id', 'field_id', 'date', 'note')
 
     def validate_slot_id(self, slot):
         if not slot.is_active:
@@ -34,6 +36,19 @@ class BookingCreateSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         slot = attrs['slot']
         field = slot.field
+        
+        # Agar field_id berilgan bo'lsa, tekshiramiz
+        if 'field_id' in attrs and attrs['field_id'] != field.id:
+            raise serializers.ValidationError({
+                'field_id': f'Bu slot maydon #{field.id} ga tegishli, lekin siz #{attrs["field_id"]} ni ko\'rsatdingiz.'
+            })
+        
+        # Agar date berilgan bo'lsa, tekshiramiz
+        if 'date' in attrs and attrs['date'] != slot.date:
+            raise serializers.ValidationError({
+                'date': f'Bu slot {slot.date} sanasiga tegishli, lekin siz {attrs["date"]} ni ko\'rsatdingiz.'
+            })
+        
         from apps.fields.utils import get_available_dates
         if slot.date not in get_available_dates(field):
             raise serializers.ValidationError(
@@ -44,6 +59,10 @@ class BookingCreateSerializer(serializers.ModelSerializer):
         return attrs
 
     def create(self, validated_data):
+        # field_id va date ni olib tashlaymiz, ular faqat validatsiya uchun
+        validated_data.pop('field_id', None)
+        validated_data.pop('date', None)
+        
         slot = validated_data['slot']
         field = slot.field
         start_dt = datetime.combine(slot.date, slot.start_time)

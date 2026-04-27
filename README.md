@@ -122,13 +122,15 @@ Admin panel: http://127.0.0.1:8000/admin/
 | GET | `/api/fields/` | List active fields |
 | GET | `/api/fields/?city=Toshkent&price_min=100000&price_max=200000` | Filter fields |
 | GET | `/api/fields/{id}/` | Field detail with images & amenities |
-| GET | `/api/fields/{id}/slots/?date=2025-06-15` | Available time slots |
+| GET | `/api/fields/{id}/available-dates/` | Available booking dates for field |
+| GET | `/api/fields/{id}/slots/?date=2025-06-15` | Available time slots (date required) |
+| GET | `/api/fields/slots/{slot_id}/` | Get specific slot details |
 
 ### Bookings (Authenticated)
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/api/bookings/` | Create booking |
+| POST | `/api/bookings/` | Create booking (slot_id required, field_id & date optional for validation) |
 | GET | `/api/bookings/my/` | My bookings |
 | DELETE | `/api/bookings/{id}/cancel/` | Cancel pending booking |
 
@@ -173,17 +175,35 @@ curl -X POST http://localhost:8000/api/auth/register/ \
   -d '{"username":"john","email":"john@example.com","first_name":"John","phone":"+998901234567","password":"Pass@1234","password2":"Pass@1234"}'
 ```
 
-### Create Booking
+### Get Available Dates
+```bash
+curl http://localhost:8000/api/fields/1/available-dates/
+```
+
+### Get Slots for Specific Date
+```bash
+curl http://localhost:8000/api/fields/1/slots/?date=2025-06-20
+```
+
+### Get Specific Slot Details
+```bash
+curl http://localhost:8000/api/fields/slots/123/
+```
+
+### Create Booking (Minimal - only slot_id)
 ```bash
 curl -X POST http://localhost:8000/api/bookings/ \
   -H "Authorization: Bearer <token>" \
   -H "Content-Type: application/json" \
-  -d '{"field":1,"date":"2025-06-20","start_time":"10:00","end_time":"11:00"}'
+  -d '{"slot_id":123,"note":"Optional note"}'
 ```
 
-### Get Slots
+### Create Booking (With validation - slot_id, field_id, date)
 ```bash
-curl http://localhost:8000/api/fields/1/slots/?date=2025-06-20
+curl -X POST http://localhost:8000/api/bookings/ \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"slot_id":123,"field_id":1,"date":"2025-06-20","note":"Optional note"}'
 ```
 
 ---
