@@ -36,7 +36,7 @@ class FootballFieldListSerializer(serializers.ModelSerializer):
     class Meta:
         model = FootballField
         fields = (
-            'id', 'name', 'address', 'city', 'location_url', 'phone',
+            'id', 'name', 'address', 'city', 'latitude', 'longitude', 'location_url', 'phone',
             'price_per_hour', 'opening_time', 'closing_time',
             'advance_booking_days', 'is_active', 'subscription_valid',
             'cover_image_url', 'amenities', 'images', 'created_at',
@@ -61,8 +61,8 @@ class FootballFieldDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = FootballField
         fields = (
-            'id', 'name', 'description', 'address', 'city', 'location_url', 'phone',
-            'price_per_hour', 'opening_time', 'closing_time',
+            'id', 'name', 'description', 'address', 'city', 'latitude', 'longitude', 
+            'location_url', 'phone', 'price_per_hour', 'opening_time', 'closing_time',
             'advance_booking_days', 'is_active', 'subscription_valid',
             'cover_image', 'cover_image_url',
             'images', 'amenities', 'created_at', 'updated_at',
@@ -89,7 +89,7 @@ class FootballFieldWriteSerializer(serializers.ModelSerializer):
         model = FootballField
         fields = (
             'id', 'owner', 'name', 'description', 'address', 'city',
-            'location_url', 'phone', 'price_per_hour',
+            'latitude', 'longitude', 'location_url', 'phone', 'price_per_hour',
             'opening_time', 'closing_time', 'advance_booking_days',
             'is_active', 'cover_image', 'uploaded_images',
             'subscription_start', 'subscription_end', 'is_subscription_active',

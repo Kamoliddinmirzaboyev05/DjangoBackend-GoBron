@@ -16,6 +16,21 @@ class FootballField(models.Model):
     description = models.TextField(blank=True, verbose_name='Tavsif')
     address = models.CharField(max_length=300, verbose_name='Manzil')
     city = models.CharField(max_length=100, verbose_name='Shahar')
+    
+    # Location coordinates
+    latitude = models.DecimalField(
+        max_digits=9, decimal_places=6, 
+        null=True, blank=True,
+        verbose_name='Kenglik (Latitude)',
+        help_text='Masalan: 41.311151'
+    )
+    longitude = models.DecimalField(
+        max_digits=9, decimal_places=6,
+        null=True, blank=True,
+        verbose_name='Uzunlik (Longitude)',
+        help_text='Masalan: 69.279737'
+    )
+    
     location_url = models.URLField(
         blank=True, null=True,
         verbose_name='Joylashuv (Google Maps URL)',
