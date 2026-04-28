@@ -245,6 +245,16 @@ UNFOLD = {
                         'icon': 'people',
                         'link': '/admin/accounts/customuser/',
                     },
+                    {
+                        'title': 'OTP Kodlar',
+                        'icon': 'security',
+                        'link': '/admin/accounts/otpcode/',
+                    },
+                    {
+                        'title': 'Magic Tokenlar',
+                        'icon': 'vpn_key',
+                        'link': '/admin/accounts/magictoken/',
+                    },
                 ],
             },
             {

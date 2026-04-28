@@ -1,4 +1,5 @@
 import uuid
+import random
 from django.contrib.auth.models import AbstractUser, UserManager
 from django.db import models
 from django.utils import timezone
@@ -238,3 +239,98 @@ class UserSession(models.Model):
 
     def __str__(self):
         return f'{self.user.phone_number} - {self.telegram_id}'
+
+
+class OTPCode(models.Model):
+    """OTP kodlari telefon raqamini tasdiqlash uchun"""
+    
+    phone_number = models.CharField(
+        max_length=20,
+        verbose_name='Telefon raqami'
+    )
+    telegram_id = models.BigIntegerField(
+        verbose_name='Telegram ID'
+    )
+    code = models.CharField(
+        max_length=4,
+        verbose_name='OTP kod'
+    )
+    user_role = models.CharField(
+        max_length=10,
+        choices=CustomUser.USER_ROLE_CHOICES,
+        verbose_name='Foydalanuvchi roli'
+    )
+    full_name = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+        verbose_name='To\'liq ism'
+    )
+    telegram_username = models.CharField(
+        max_length=50,
+        blank=True,
+        null=True,
+        verbose_name='Telegram username'
+    )
+    is_verified = models.BooleanField(
+        default=False,
+        verbose_name='Tasdiqlangan'
+    )
+    attempts = models.IntegerField(
+        default=0,
+        verbose_name='Urinishlar soni'
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name='Yaratilgan vaqt'
+    )
+    expires_at = models.DateTimeField(
+        verbose_name='Amal qilish muddati'
+    )
+
+    class Meta:
+        verbose_name = 'OTP Kod'
+        verbose_name_plural = 'OTP Kodlar'
+        ordering = ['-created_at']
+        unique_together = ['phone_number', 'telegram_id']
+
+    def __str__(self):
+        return f'{self.phone_number} - {self.code}'
+
+    def save(self, *args, **kwargs):
+        if not self.code:
+            # 4 xonali tasodifiy kod yaratish
+            self.code = str(random.randint(1000, 9999))
+        
+        if not self.expires_at:
+            # 5 daqiqa amal qiladi
+            self.expires_at = timezone.now() + timedelta(minutes=5)
+        
+        super().save(*args, **kwargs)
+
+    @property
+    def is_expired(self):
+        return timezone.now() > self.expires_at
+
+    @property
+    def is_valid(self):
+        return not self.is_verified and not self.is_expired and self.attempts < 3
+
+    @classmethod
+    def generate_code(cls, phone_number, telegram_id, user_role, full_name=None, telegram_username=None):
+        """Yangi OTP kod yaratish"""
+        # Eski kodlarni o'chirish
+        cls.objects.filter(
+            phone_number=phone_number,
+            telegram_id=telegram_id
+        ).delete()
+        
+        # Yangi kod yaratish
+        otp = cls.objects.create(
+            phone_number=phone_number,
+            telegram_id=telegram_id,
+            user_role=user_role,
+            full_name=full_name,
+            telegram_username=telegram_username
+        )
+        return otp

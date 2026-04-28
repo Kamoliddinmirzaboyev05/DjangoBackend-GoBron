@@ -4,7 +4,7 @@ from django.utils.html import format_html
 from unfold.admin import ModelAdmin
 from unfold.forms import AdminPasswordChangeForm, UserChangeForm, UserCreationForm
 
-from .models import CustomUser, MagicToken, Stadium, UserSession
+from .models import CustomUser, MagicToken, Stadium, UserSession, OTPCode
 
 
 @admin.register(CustomUser)
@@ -119,3 +119,58 @@ class UserSessionAdmin(ModelAdmin):
     search_fields = ('user__phone_number', 'user__full_name', 'telegram_id')
     ordering = ('-updated_at',)
     readonly_fields = ('created_at', 'updated_at')
+
+
+@admin.register(OTPCode)
+class OTPCodeAdmin(ModelAdmin):
+    list_display = (
+        'phone_number', 'code', 'user_role_badge', 'telegram_id',
+        'is_verified', 'attempts', 'status_display', 'created_at', 'expires_at'
+    )
+    list_filter = ('user_role', 'is_verified', 'created_at', 'expires_at')
+    search_fields = ('phone_number', 'full_name', 'telegram_id', 'code')
+    ordering = ('-created_at',)
+    readonly_fields = ('code', 'created_at', 'expires_at', 'status_display')
+
+    fieldsets = (
+        (None, {
+            'fields': ('phone_number', 'telegram_id', 'code')
+        }),
+        ('Foydalanuvchi ma\'lumotlari', {
+            'fields': ('user_role', 'full_name', 'telegram_username')
+        }),
+        ('Tasdiqlash', {
+            'fields': ('is_verified', 'attempts', 'status_display')
+        }),
+        ('Vaqt belgilari', {
+            'fields': ('created_at', 'expires_at')
+        }),
+    )
+
+    def user_role_badge(self, obj):
+        color = '#16a34a' if obj.user_role == 'OWNER' else '#2563eb'
+        return format_html(
+            '<span style="background:{};color:#fff;padding:2px 10px;'
+            'border-radius:12px;font-size:11px;font-weight:600;">{}</span>',
+            color, obj.get_user_role_display(),
+        )
+    user_role_badge.short_description = 'Rol'
+
+    def status_display(self, obj):
+        if obj.is_verified:
+            return format_html(
+                '<span style="color:#16a34a;font-weight:600;">✓ Tasdiqlangan</span>'
+            )
+        elif obj.is_expired:
+            return format_html(
+                '<span style="color:#f59e0b;font-weight:600;">⏰ Muddati tugagan</span>'
+            )
+        elif obj.attempts >= 3:
+            return format_html(
+                '<span style="color:#dc2626;font-weight:600;">🚫 Bloklangan</span>'
+            )
+        else:
+            return format_html(
+                '<span style="color:#2563eb;font-weight:600;">⏳ Kutilmoqda</span>'
+            )
+    status_display.short_description = 'Holat'

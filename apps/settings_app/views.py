@@ -262,7 +262,7 @@ class AdminStatsView(APIView):
                 'bookings': Booking.objects.count(),
                 'revenue': revenue(confirmed),
                 'fields': FootballField.objects.filter(is_active=True).count(),
-                'users': CustomUser.objects.filter(role='user').count(),
+                'users': CustomUser.objects.filter(user_role='PLAYER').count(),
             },
             'by_status': status_counts,
             'per_day_last_30': per_day_data,

@@ -8,12 +8,11 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from django.db import sync_to_async
 
-from ..models import CustomUser, MagicToken, UserSession
+from ..models import CustomUser, MagicToken, UserSession, OTPCode
 from .keyboards import (
     get_role_selection_keyboard,
     get_contact_keyboard,
     get_magic_link_keyboard,
-    get_main_menu_keyboard
 )
 
 logger = logging.getLogger(__name__)
@@ -25,6 +24,7 @@ class RegistrationStates(StatesGroup):
     waiting_for_role = State()
     waiting_for_contact = State()
     waiting_for_name = State()
+    waiting_for_otp = State()
 
 
 # Database operatsiyalari
@@ -95,6 +95,19 @@ def save_user_session(user, telegram_id, session_data):
     return session
 
 
+@sync_to_async
+def send_otp_to_telegram(bot, telegram_id, otp_code):
+    """OTP kodni Telegram orqali yuborish"""
+    try:
+        # Bu yerda haqiqiy OTP yuborish logikasi bo'lishi kerak
+        # Hozircha faqat log qilamiz
+        logger.info(f"OTP kod yuborildi: {telegram_id} -> {otp_code}")
+        return True
+    except Exception as e:
+        logger.error(f"OTP yuborishda xatolik: {e}")
+        return False
+
+
 def format_phone_number(phone):
     """Telefon raqamini formatlash"""
     # Barcha belgilarni olib tashlash
@@ -113,7 +126,7 @@ def format_phone_number(phone):
 
 @router.message(CommandStart())
 async def start_handler(message: Message, state: FSMContext):
-    """Start buyrug'i handler"""
+    """Start buyrug'i handler - Silent Auth"""
     try:
         telegram_id = message.from_user.id
         telegram_username = message.from_user.username
@@ -122,10 +135,10 @@ async def start_handler(message: Message, state: FSMContext):
         user = await get_user_by_telegram_id(telegram_id)
         
         if user:
-            # Mavjud foydalanuvchi
-            await existing_user_flow(message, user, state)
+            # Mavjud foydalanuvchi - Silent Auth
+            await silent_auth_flow(message, user, state)
         else:
-            # Yangi foydalanuvchi
+            # Yangi foydalanuvchi - Registration flow
             await new_user_flow(message, state, telegram_username)
             
     except Exception as e:
@@ -136,29 +149,8 @@ async def start_handler(message: Message, state: FSMContext):
         )
 
 
-async def new_user_flow(message: Message, state: FSMContext, telegram_username=None):
-    """Yangi foydalanuvchi uchun oqim"""
-    await state.update_data(telegram_username=telegram_username)
-    
-    welcome_text = """🎉 <b>GoBron platformasiga xush kelibsiz!</b>
-
-Bu yerda siz:
-⚽ Futbol maydonlarini topishingiz
-📅 Maydonlarni bron qilishingiz
-🏟️ O'z maydonlaringizni boshqarishingiz mumkin
-
-Davom etish uchun rolni tanlang:"""
-
-    await message.answer(
-        welcome_text,
-        reply_markup=get_role_selection_keyboard(),
-        parse_mode="HTML"
-    )
-    await state.set_state(RegistrationStates.waiting_for_role)
-
-
-async def existing_user_flow(message: Message, user, state: FSMContext):
-    """Mavjud foydalanuvchi uchun oqim"""
+async def silent_auth_flow(message: Message, user, state: FSMContext):
+    """Mavjud foydalanuvchi uchun Silent Auth"""
     await state.clear()
     
     # Magic Token yaratish
@@ -170,17 +162,49 @@ async def existing_user_flow(message: Message, user, state: FSMContext):
         'username': message.from_user.username
     })
     
+    # Foydalanuvchi roliga qarab yo'naltirish
+    if user.user_role == 'PLAYER':
+        app_type = "🎮 Telegram Mini App"
+        description = "Maydonlarni ko'rish va bron qilish uchun"
+    else:  # OWNER
+        app_type = "🏢 PWA Boshqaruv Paneli"
+        description = "Maydonlaringizni boshqarish uchun"
+    
     welcome_text = f"""👋 <b>Salom, {user.full_name or user.phone_number}!</b>
 
-Sizning rolingiz: <b>{user.get_user_role_display()}</b>
+🎯 <b>Sizning rolingiz:</b> {user.get_user_role_display()}
+📱 <b>Ilovangiz:</b> {app_type}
 
-Ilovaga kirish uchun quyidagi tugmani bosing:"""
+{description}
+
+<i>Quyidagi tugmani bosib ilovaga kiring:</i>"""
 
     await message.answer(
         welcome_text,
         reply_markup=get_magic_link_keyboard(magic_token.token, user.user_role),
         parse_mode="HTML"
     )
+
+
+async def new_user_flow(message: Message, state: FSMContext, telegram_username=None):
+    """Yangi foydalanuvchi uchun ro'yxatdan o'tish"""
+    await state.update_data(telegram_username=telegram_username)
+    
+    welcome_text = """🎉 <b>GoBron platformasiga xush kelibsiz!</b>
+
+Bu yerda siz:
+⚽ Futbol maydonlarini topishingiz
+📅 Maydonlarni bron qilishingiz
+🏟️ O'z maydonlaringizni boshqarishingiz mumkin
+
+<b>Davom etish uchun rolni tanlang:</b>"""
+
+    await message.answer(
+        welcome_text,
+        reply_markup=get_role_selection_keyboard(),
+        parse_mode="HTML"
+    )
+    await state.set_state(RegistrationStates.waiting_for_role)
 
 
 @router.callback_query(F.data.startswith("role:"))
@@ -211,7 +235,7 @@ Endi telefon raqamingizni yuboring:"""
 
 @router.message(RegistrationStates.waiting_for_contact, F.contact)
 async def contact_handler(message: Message, state: FSMContext):
-    """Kontakt handler"""
+    """Kontakt handler - OTP yuborish"""
     try:
         contact: Contact = message.contact
         phone_number = format_phone_number(contact.phone_number)
@@ -219,9 +243,9 @@ async def contact_handler(message: Message, state: FSMContext):
         # Telefon raqami mavjudligini tekshirish
         existing_user = await get_user_by_phone(phone_number)
         if existing_user:
-            # Telegram ID ni yangilash
+            # Telegram ID ni yangilash va Silent Auth
             await update_user(existing_user, telegram_id=message.from_user.id)
-            await existing_user_flow(message, existing_user, state)
+            await silent_auth_flow(message, existing_user, state)
             return
         
         # Yangi foydalanuvchi uchun ism so'rash
@@ -229,7 +253,7 @@ async def contact_handler(message: Message, state: FSMContext):
         
         text = """📝 <b>Ism-familiyangizni kiriting:</b>
 
-Masalan: Akmal Karimov"""
+<i>Masalan: Akmal Karimov</i>"""
 
         await message.answer(text, parse_mode="HTML")
         await state.set_state(RegistrationStates.waiting_for_name)
@@ -241,7 +265,7 @@ Masalan: Akmal Karimov"""
 
 @router.message(RegistrationStates.waiting_for_name, F.text)
 async def name_handler(message: Message, state: FSMContext):
-    """Ism handler"""
+    """Ism handler - OTP yuborish"""
     try:
         full_name = message.text.strip()
         
@@ -252,13 +276,76 @@ async def name_handler(message: Message, state: FSMContext):
         # Foydalanuvchi ma'lumotlarini olish
         data = await state.get_data()
         
-        # Foydalanuvchi yaratish
-        user = await create_user(
-            telegram_id=message.from_user.id,
+        # OTP kod yaratish va yuborish
+        otp = await create_otp_code(
             phone_number=data['phone_number'],
+            telegram_id=message.from_user.id,
             user_role=data['user_role'],
             full_name=full_name,
             telegram_username=data.get('telegram_username')
+        )
+        
+        # OTP kodni Telegram orqali yuborish
+        otp_text = f"""🔐 <b>Tasdiqlash kodi:</b>
+
+<code>{otp.code}</code>
+
+📱 <b>Telefon raqamingiz:</b> {data['phone_number']}
+⏰ <b>Kod 5 daqiqa amal qiladi</b>
+
+Kodni quyidagi xabarga yozing:"""
+
+        await message.answer(otp_text, parse_mode="HTML")
+        
+        # State ni OTP kutish holatiga o'tkazish
+        await state.set_state(RegistrationStates.waiting_for_otp)
+        
+    except Exception as e:
+        logger.error(f"Name handler error: {e}")
+        await message.answer("❌ Xatolik yuz berdi. Qaytadan urinib ko'ring.")
+
+
+@router.message(RegistrationStates.waiting_for_otp, F.text)
+async def otp_handler(message: Message, state: FSMContext):
+    """OTP kod tekshirish handler"""
+    try:
+        otp_code = message.text.strip()
+        
+        # Kod formatini tekshirish
+        if not otp_code.isdigit() or len(otp_code) != 4:
+            await message.answer("❌ Kod 4 ta raqamdan iborat bo'lishi kerak. Qaytadan kiriting:")
+            return
+        
+        # Foydalanuvchi ma'lumotlarini olish
+        data = await state.get_data()
+        
+        # OTP kodni tekshirish
+        otp, error = await verify_otp_code(
+            phone_number=data['phone_number'],
+            telegram_id=message.from_user.id,
+            code=otp_code
+        )
+        
+        if error:
+            await message.answer(f"❌ {error}")
+            
+            # Agar juda ko'p urinish bo'lsa, qaytadan boshlash
+            if "Juda ko'p" in error:
+                await message.answer("🔄 Qaytadan boshlash uchun /start buyrug'ini yuboring.")
+                await state.clear()
+            return
+        
+        if not otp:
+            await message.answer("❌ Noto'g'ri kod. Qaytadan kiriting:")
+            return
+        
+        # Foydalanuvchi yaratish
+        user = await create_user(
+            telegram_id=message.from_user.id,
+            phone_number=otp.phone_number,
+            user_role=otp.user_role,
+            full_name=otp.full_name,
+            telegram_username=otp.telegram_username
         )
         
         # Magic Token yaratish
@@ -267,16 +354,30 @@ async def name_handler(message: Message, state: FSMContext):
         # Sessiya saqlash
         await save_user_session(user, message.from_user.id, {
             'registration_date': message.date.isoformat(),
-            'username': message.from_user.username
+            'username': message.from_user.username,
+            'otp_verified': True
         })
         
-        success_text = f"""🎉 <b>Ro'yxatdan o'tish muvaffaqiyatli!</b>
+        # Foydalanuvchi roliga qarab yo'naltirish
+        if user.user_role == 'PLAYER':
+            app_type = "🎮 Telegram Mini App"
+            description = "Maydonlarni ko'rish va bron qilish uchun"
+        else:  # OWNER
+            app_type = "🏢 PWA Boshqaruv Paneli"
+            description = "Maydonlaringizni boshqarish uchun"
+        
+        success_text = f"""🎉 <b>Telefon raqami tasdiqlandi!</b>
 
-👤 <b>Ism:</b> {full_name}
-📱 <b>Telefon:</b> {data['phone_number']}
+✅ <b>Ro'yxatdan o'tish muvaffaqiyatli!</b>
+
+👤 <b>Ism:</b> {otp.full_name}
+📱 <b>Telefon:</b> {otp.phone_number}
 ⚽ <b>Rol:</b> {user.get_user_role_display()}
+🎯 <b>Ilovangiz:</b> {app_type}
 
-Ilovaga kirish uchun quyidagi tugmani bosing:"""
+{description}
+
+<i>Quyidagi tugmani bosib ilovaga kiring:</i>"""
 
         await message.answer(
             success_text,
@@ -287,7 +388,7 @@ Ilovaga kirish uchun quyidagi tugmani bosing:"""
         await state.clear()
         
     except Exception as e:
-        logger.error(f"Name handler error: {e}")
+        logger.error(f"OTP handler error: {e}")
         await message.answer("❌ Xatolik yuz berdi. Qaytadan urinib ko'ring.")
 
 
@@ -300,9 +401,17 @@ async def help_handler(message: Message):
 /start - Botni ishga tushirish
 /help - Bu yordam xabari
 /profile - Profil ma'lumotlari
+/resend_otp - OTP kodni qayta yuborish
 
 <b>Bot haqida:</b>
 Bu bot GoBron platformasi uchun mo'ljallangan. Bu yerda siz futbol maydonlarini topishingiz va bron qilishingiz mumkin.
+
+<b>Ro'yxatdan o'tish:</b>
+1. Rolni tanlang (Futbolchi yoki Maydon egasi)
+2. Telefon raqamingizni yuboring
+3. Ism-familiyangizni kiriting
+4. SMS orqali kelgan 4 xonali kodni kiriting
+5. Ilovaga kiring
 
 <b>Qo'llab-quvvatlash:</b>
 Agar savollaringiz bo'lsa, @support ga murojaat qiling."""
@@ -335,6 +444,51 @@ async def profile_handler(message: Message):
     except Exception as e:
         logger.error(f"Profile handler error: {e}")
         await message.answer("❌ Profil ma'lumotlarini olishda xatolik yuz berdi.")
+
+
+@router.message(Command("resend_otp"))
+async def resend_otp_handler(message: Message, state: FSMContext):
+    """OTP kodni qayta yuborish"""
+    try:
+        # Foydalanuvchi state ni tekshirish
+        current_state = await state.get_state()
+        if current_state != RegistrationStates.waiting_for_otp:
+            await message.answer(
+                "❌ Hozir OTP kutilmayapti. Ro'yxatdan o'tish uchun /start buyrug'ini ishlatib ko'ring."
+            )
+            return
+        
+        # Foydalanuvchi ma'lumotlarini olish
+        data = await state.get_data()
+        if not data.get('phone_number'):
+            await message.answer("❌ Ma'lumotlar topilmadi. Qaytadan /start buyrug'ini ishlatib ko'ring.")
+            await state.clear()
+            return
+        
+        # Yangi OTP kod yaratish
+        otp = await create_otp_code(
+            phone_number=data['phone_number'],
+            telegram_id=message.from_user.id,
+            user_role=data['user_role'],
+            full_name=data.get('full_name'),
+            telegram_username=data.get('telegram_username')
+        )
+        
+        # Yangi kodni yuborish
+        otp_text = f"""🔐 <b>Yangi tasdiqlash kodi:</b>
+
+<code>{otp.code}</code>
+
+📱 <b>Telefon raqamingiz:</b> {data['phone_number']}
+⏰ <b>Kod 5 daqiqa amal qiladi</b>
+
+Kodni quyidagi xabarga yozing:"""
+
+        await message.answer(otp_text, parse_mode="HTML")
+        
+    except Exception as e:
+        logger.error(f"Resend OTP error: {e}")
+        await message.answer("❌ Xatolik yuz berdi. Qaytadan urinib ko'ring.")
 
 
 @router.message()

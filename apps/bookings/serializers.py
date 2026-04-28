@@ -12,7 +12,7 @@ from .models import Booking
 class BookingCreateSerializer(serializers.ModelSerializer):
     """Foydalanuvchi tomonidan online bron."""
     slot_id = serializers.PrimaryKeyRelatedField(
-        queryset=TimeSlot.objects.all(),
+        queryset=TimeSlot.objects.select_related('field').filter(is_active=True),
         source='slot',
         write_only=True,
         label='Slot ID',
@@ -90,7 +90,7 @@ class AdminBookingManualCreateSerializer(serializers.Serializer):
         help_text='Maydon ID (tekshirish uchun)'
     )
     slot_id = serializers.PrimaryKeyRelatedField(
-        queryset=TimeSlot.objects.all(),
+        queryset=TimeSlot.objects.select_related('field').filter(is_active=True),
         label='Slot ID',
     )
     date = serializers.DateField(

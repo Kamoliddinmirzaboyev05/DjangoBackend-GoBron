@@ -11,7 +11,7 @@ from .serializers import BookingCreateSerializer, BookingSerializer
 
 
 def _notify_admins(booking):
-    admins = CustomUser.objects.filter(role='admin', is_active=True)
+    admins = CustomUser.objects.filter(user_role='OWNER', is_active=True)
     notifications = [
         Notification(
             recipient=admin,

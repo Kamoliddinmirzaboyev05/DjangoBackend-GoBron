@@ -43,7 +43,7 @@ class Command(BaseCommand):
                 f'  Username : {user.username}\n'
                 f'  Email    : {user.email}\n'
                 f'  Password : {password}\n'
-                f'  Role     : {user.role}\n'
+                f'  Role     : {user.user_role}\n'
                 f'\nPlease change the password after first login!'
             )
         )
