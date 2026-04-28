@@ -5,7 +5,7 @@ from rest_framework import serializers
 
 from apps.fields.models import TimeSlot
 from apps.fields.serializers import FootballFieldListSerializer
-from apps.accounts.serializers import UserProfileSerializer
+from apps.accounts.serializers import UserSerializer
 from .models import Booking
 
 
@@ -184,7 +184,7 @@ class AdminBookingManualCreateSerializer(serializers.Serializer):
 
 class BookingSerializer(serializers.ModelSerializer):
     field_detail = FootballFieldListSerializer(source='field', read_only=True)
-    user_detail = UserProfileSerializer(source='user', read_only=True)
+    user_detail = UserSerializer(source='user', read_only=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     booking_type_display = serializers.CharField(source='get_booking_type_display', read_only=True)
     client_name = serializers.CharField(read_only=True)

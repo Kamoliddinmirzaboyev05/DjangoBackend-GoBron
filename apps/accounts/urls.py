@@ -1,12 +1,30 @@
 from django.urls import path
 from rest_framework_simplejwt.views import TokenRefreshView
 
-from .views import RegisterView, LoginView, LogoutView, ProfileView
+from .views import (
+    VerifyMagicTokenView,
+    ProfileView,
+    LoginView,
+    StadiumListCreateView,
+    StadiumDetailView,
+    UserStatsView,
+)
 
 urlpatterns = [
-    path('register/', RegisterView.as_view(), name='auth-register'),
-    path('login/', LoginView.as_view(), name='auth-login'),
-    path('logout/', LogoutView.as_view(), name='auth-logout'),
-    path('profile/', ProfileView.as_view(), name='auth-profile'),
+    # Magic Token Auth
+    path('verify-token/', VerifyMagicTokenView.as_view(), name='verify-magic-token'),
+    
+    # User Profile
+    path('profile/', ProfileView.as_view(), name='profile'),
+    
+    # JWT Auth (fallback)
+    path('login/', LoginView.as_view(), name='login'),
     path('token/refresh/', TokenRefreshView.as_view(), name='token-refresh'),
+    
+    # Stadiums
+    path('stadiums/', StadiumListCreateView.as_view(), name='stadium-list'),
+    path('stadiums/<int:pk>/', StadiumDetailView.as_view(), name='stadium-detail'),
+    
+    # Debug
+    path('stats/', UserStatsView.as_view(), name='user-stats'),
 ]

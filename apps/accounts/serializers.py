@@ -1,70 +1,24 @@
-from django.contrib.auth.password_validation import validate_password
-from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from drf_spectacular.utils import extend_schema_field
 
-from .models import CustomUser
-
-
-class RegisterSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(
-        write_only=True, required=True, validators=[validate_password]
-    )
-    password2 = serializers.CharField(write_only=True, required=True, label='Parolni tasdiqlang')
-    role = serializers.ChoiceField(
-        choices=[('user', 'Foydalanuvchi'), ('admin', 'Admin')],
-        default='user',
-        required=False,
-    )
-
-    class Meta:
-        model = CustomUser
-        fields = (
-            'id', 'username', 'first_name', 'last_name',
-            'phone', 'role', 'password', 'password2',
-        )
-
-    def validate(self, attrs):
-        if attrs['password'] != attrs['password2']:
-            raise serializers.ValidationError({'password': 'Parollar mos kelmadi.'})
-        return attrs
-
-    def create(self, validated_data):
-        validated_data.pop('password2')
-        password = validated_data.pop('password')
-        role = validated_data.get('role', 'user')
-        user = CustomUser(**validated_data)
-        user.set_password(password)
-        if role == 'admin':
-            user.is_staff = True
-        user.save()
-        return user
+from .models import CustomUser, MagicToken, Stadium
 
 
-class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
-    @classmethod
-    def get_token(cls, user):
-        token = super().get_token(user)
-        token['username'] = user.username
-        token['role'] = user.role
-        return token
-
-    def validate(self, attrs):
-        data = super().validate(attrs)
-        data['user'] = UserProfileSerializer(self.user).data
-        return data
-
-
-class UserProfileSerializer(serializers.ModelSerializer):
+class UserSerializer(serializers.ModelSerializer):
+    """Foydalanuvchi serializer"""
     avatar_url = serializers.SerializerMethodField()
 
     class Meta:
         model = CustomUser
         fields = (
-            'id', 'username', 'first_name', 'last_name',
-            'phone', 'role', 'avatar_url', 'date_joined',
+            'id', 'phone_number', 'telegram_id', 'user_role',
+            'full_name', 'avatar_url', 'is_phone_verified',
+            'telegram_username', 'date_joined'
         )
-        read_only_fields = ('id', 'role', 'date_joined', 'avatar_url')
+        read_only_fields = (
+            'id', 'telegram_id', 'is_phone_verified', 'date_joined'
+        )
 
     @extend_schema_field(serializers.URLField(allow_null=True))
     def get_avatar_url(self, obj):
@@ -74,8 +28,42 @@ class UserProfileSerializer(serializers.ModelSerializer):
         return None
 
 
-class UserUpdateSerializer(serializers.ModelSerializer):
+class MagicTokenSerializer(serializers.ModelSerializer):
+    """Magic Token serializer"""
+    user = UserSerializer(read_only=True)
+
     class Meta:
-        model = CustomUser
-        fields = ('first_name', 'last_name', 'phone', 'avatar')
-        extra_kwargs = {'avatar': {'required': False}}
+        model = MagicToken
+        fields = ('token', 'user', 'created_at', 'expires_at', 'is_used')
+        read_only_fields = ('token', 'created_at', 'expires_at')
+
+
+class StadiumSerializer(serializers.ModelSerializer):
+    """Stadion serializer"""
+    owner = UserSerializer(read_only=True)
+
+    class Meta:
+        model = Stadium
+        fields = (
+            'id', 'owner', 'name', 'address', 'hourly_rate',
+            'description', 'is_active', 'created_at', 'updated_at'
+        )
+        read_only_fields = ('id', 'owner', 'created_at', 'updated_at')
+
+
+class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+    """JWT token serializer"""
+    username_field = 'phone_number'
+
+    @classmethod
+    def get_token(cls, user):
+        token = super().get_token(user)
+        token['phone_number'] = user.phone_number
+        token['user_role'] = user.user_role
+        token['telegram_id'] = user.telegram_id
+        return token
+
+    def validate(self, attrs):
+        data = super().validate(attrs)
+        data['user'] = UserSerializer(self.user, context={'request': self.context.get('request')}).data
+        return data

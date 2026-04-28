@@ -299,6 +299,15 @@ UNFOLD = {
     },
 }
 
+# Telegram Bot
+TELEGRAM_BOT_TOKEN = config('TELEGRAM_BOT_TOKEN', default='')
+
+# Redis (OTP uchun)
+REDIS_URL = config('REDIS_URL', default='redis://localhost:6379/0')
+
+# OTP Settings
+OTP_EXPIRY_MINUTES = 5  # OTP 5 daqiqa amal qiladi
+
 
 def environment_callback(request):
     return ['Development', 'warning'] if DEBUG else ['Production', 'danger']
