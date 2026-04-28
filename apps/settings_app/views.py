@@ -2,7 +2,7 @@ from datetime import date, timedelta
 
 from django.db.models import Sum, Count, Q
 from django.utils import timezone
-from drf_spectacular.utils import extend_schema, OpenApiParameter
+from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiExample
 from drf_spectacular.types import OpenApiTypes
 from rest_framework import generics, status
 from rest_framework.response import Response
@@ -120,9 +120,63 @@ class AdminBookingRejectView(APIView):
         return Response(BookingAdminSerializer(booking).data)
 
 
-@extend_schema(tags=['Admin — Bookings'])
+@extend_schema(
+    tags=['Admin — Bookings'],
+    request=AdminBookingManualCreateSerializer,
+    responses={201: BookingAdminSerializer},
+    examples=[
+        OpenApiExample(
+            'Minimal (majburiy maydonlar)',
+            value={
+                'slot_id': 123,
+                'guest_full_name': 'Alisher Valiyev',
+                'guest_phone': '+998901234567'
+            },
+            request_only=True,
+        ),
+        OpenApiExample(
+            'To\'liq (barcha maydonlar)',
+            value={
+                'field_id': 1,
+                'slot_id': 123,
+                'date': '2026-04-28',
+                'guest_full_name': 'Alisher Valiyev',
+                'guest_phone': '+998901234567',
+                'plan': 150000.00,
+                'note': 'VIP mijoz, maxsus chegirma'
+            },
+            request_only=True,
+        ),
+        OpenApiExample(
+            'Tekin o\'yin',
+            value={
+                'slot_id': 123,
+                'guest_full_name': 'Alisher Valiyev',
+                'guest_phone': '+998901234567',
+                'plan': 0,
+                'note': 'Tanlov g\'olibi - tekin o\'yin'
+            },
+            request_only=True,
+        ),
+    ]
+)
 class AdminBookingManualCreateView(APIView):
-    """Admin tomonidan qo'lda slot band qilish (slot_id, full_name, phone)."""
+    """
+    Admin tomonidan qo'lda bron yaratish.
+    
+    Admin yaratgan bronlar avtomatik ravishda **tasdiqlangan** holatda bo'ladi.
+    
+    **Majburiy maydonlar:**
+    - slot_id: Slot ID raqami
+    - guest_full_name: Mijoz to'liq ismi
+    - guest_phone: Mijoz telefon raqami
+    
+    **Ixtiyoriy maydonlar:**
+    - field_id: Maydon ID (qo'shimcha validatsiya uchun)
+    - date: Sana (qo'shimcha validatsiya uchun)
+    - plan: To'lov summasi (berilmasa avtomatik hisoblash, 0 = tekin)
+    - note: Qo'shimcha izoh
+    """
     permission_classes = [IsAdminRole]
 
     def post(self, request):
