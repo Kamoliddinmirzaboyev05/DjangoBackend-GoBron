@@ -28,7 +28,7 @@ class FieldAmenitySerializer(serializers.ModelSerializer):
 class FootballFieldListSerializer(serializers.ModelSerializer):
     cover_image_url = serializers.SerializerMethodField()
     amenities = FieldAmenitySerializer(many=True, read_only=True)
-    images_count = serializers.SerializerMethodField()
+    images = FieldImageSerializer(many=True, read_only=True)
     subscription_valid = serializers.BooleanField(
         source='subscription_is_valid', read_only=True
     )
@@ -39,7 +39,7 @@ class FootballFieldListSerializer(serializers.ModelSerializer):
             'id', 'name', 'address', 'city', 'location_url', 'phone',
             'price_per_hour', 'opening_time', 'closing_time',
             'advance_booking_days', 'is_active', 'subscription_valid',
-            'cover_image_url', 'amenities', 'images_count', 'created_at',
+            'cover_image_url', 'amenities', 'images', 'created_at',
         )
 
     @extend_schema_field(serializers.URLField(allow_null=True))
@@ -48,10 +48,6 @@ class FootballFieldListSerializer(serializers.ModelSerializer):
         if obj.cover_image and request:
             return request.build_absolute_uri(obj.cover_image.url)
         return None
-
-    @extend_schema_field(serializers.IntegerField())
-    def get_images_count(self, obj):
-        return obj.images.count()
 
 
 class FootballFieldDetailSerializer(serializers.ModelSerializer):
