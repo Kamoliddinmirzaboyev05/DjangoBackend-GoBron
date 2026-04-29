@@ -8,42 +8,41 @@ class Command(BaseCommand):
     help = 'Creates a default superuser admin account'
 
     def add_arguments(self, parser):
-        parser.add_argument('--username', type=str, default='admin')
-        parser.add_argument('--email', type=str, default='admin@football.uz')
-        parser.add_argument('--password', type=str, default='Admin@12345')
         parser.add_argument('--phone', type=str, default='+998901234567')
+        parser.add_argument('--email', type=str, default='admin@gobron.uz')
+        parser.add_argument('--password', type=str, default='Admin@12345')
+        parser.add_argument('--name', type=str, default='Super Admin')
 
     def handle(self, *args, **options):
-        username = options['username']
+        phone_number = options['phone']
         email = options['email']
         password = options['password']
-        phone = options['phone']
+        full_name = options['name']
 
-        if User.objects.filter(username=username).exists():
+        if User.objects.filter(phone_number=phone_number).exists():
             self.stdout.write(
                 self.style.WARNING(
-                    f'User "{username}" already exists. Skipping creation.'
+                    f'User with phone "{phone_number}" already exists. Skipping creation.'
                 )
             )
             return
 
         user = User.objects.create_superuser(
-            username=username,
+            phone_number=phone_number,
             email=email,
             password=password,
-            first_name='Super',
-            last_name='Admin',
-            phone=phone,
-            role='admin',
+            full_name=full_name,
+            user_role='OWNER',
         )
 
         self.stdout.write(
             self.style.SUCCESS(
                 f'Successfully created admin user:\n'
-                f'  Username : {user.username}\n'
+                f'  Phone    : {user.phone_number}\n'
                 f'  Email    : {user.email}\n'
+                f'  Name     : {user.full_name}\n'
                 f'  Password : {password}\n'
-                f'  Role     : {user.user_role}\n'
+                f'  Role     : {user.get_user_role_display()}\n'
                 f'\nPlease change the password after first login!'
             )
         )

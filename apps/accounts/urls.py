@@ -3,6 +3,7 @@ from rest_framework_simplejwt.views import TokenRefreshView
 
 from .views import (
     VerifyMagicTokenView,
+    WebAuthView,
     ProfileView,
     LoginView,
     StadiumListCreateView,
@@ -13,6 +14,7 @@ from .views import (
 urlpatterns = [
     # Magic Token Auth
     path('verify-token/', VerifyMagicTokenView.as_view(), name='verify-magic-token'),
+    path('web-auth/', WebAuthView.as_view(), name='web-auth'),
     
     # User Profile
     path('profile/', ProfileView.as_view(), name='profile'),

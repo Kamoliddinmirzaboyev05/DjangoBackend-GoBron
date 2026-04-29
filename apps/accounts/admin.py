@@ -65,11 +65,11 @@ class CustomUserAdmin(ModelAdmin, UserAdmin):
 
 @admin.register(MagicToken)
 class MagicTokenAdmin(ModelAdmin):
-    list_display = ('user', 'token_short', 'created_at', 'expires_at', 'is_used', 'is_valid_display')
-    list_filter = ('is_used', 'created_at', 'expires_at')
+    list_display = ('user', 'token_short', 'created_at', 'expires_at', 'usage_count', 'max_usage', 'is_valid_display')
+    list_filter = ('created_at', 'expires_at', 'usage_count')
     search_fields = ('user__phone_number', 'user__full_name', 'token')
     ordering = ('-created_at',)
-    readonly_fields = ('token', 'created_at', 'expires_at', 'is_valid_display')
+    readonly_fields = ('token', 'created_at', 'expires_at', 'is_valid_display', 'usage_info')
 
     def token_short(self, obj):
         return f"{str(obj.token)[:8]}..."
@@ -78,17 +78,26 @@ class MagicTokenAdmin(ModelAdmin):
     def is_valid_display(self, obj):
         if obj.is_valid:
             return format_html(
-                '<span style="color:#16a34a;font-weight:600;">✓ Faol</span>'
+                '<span style="color:#16a34a;font-weight:600;">✓ Faol ({}/{})</span>',
+                obj.usage_count, obj.max_usage
             )
-        elif obj.is_used:
-            return format_html(
-                '<span style="color:#dc2626;font-weight:600;">✗ Ishlatilgan</span>'
-            )
-        else:
+        elif obj.is_expired:
             return format_html(
                 '<span style="color:#f59e0b;font-weight:600;">⏰ Muddati tugagan</span>'
             )
+        elif obj.usage_count >= obj.max_usage:
+            return format_html(
+                '<span style="color:#dc2626;font-weight:600;">🚫 Limit tugagan</span>'
+            )
+        else:
+            return format_html(
+                '<span style="color:#6b7280;font-weight:600;">❌ Nofaol</span>'
+            )
     is_valid_display.short_description = 'Holat'
+
+    def usage_info(self, obj):
+        return f"{obj.usage_count}/{obj.max_usage} marta ishlatilgan"
+    usage_info.short_description = 'Ishlatilish'
 
 
 @admin.register(Stadium)

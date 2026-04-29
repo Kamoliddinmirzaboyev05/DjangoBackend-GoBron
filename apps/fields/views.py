@@ -173,6 +173,10 @@ class MyFootballFieldsListView(generics.ListAPIView):
     serializer_class = FootballFieldDetailSerializer
 
     def get_queryset(self):
+        # Swagger schema generation uchun
+        if getattr(self, 'swagger_fake_view', False):
+            return FootballField.objects.none()
+            
         return FootballField.objects.filter(owner=self.request.user).prefetch_related('images', 'amenities').order_by('-created_at')
 
 
@@ -183,6 +187,10 @@ class MyFootballFieldDetailView(generics.RetrieveUpdateAPIView):
     serializer_class = FootballFieldWriteSerializer
 
     def get_queryset(self):
+        # Swagger schema generation uchun
+        if getattr(self, 'swagger_fake_view', False):
+            return FootballField.objects.none()
+            
         return FootballField.objects.filter(owner=self.request.user).prefetch_related('images', 'amenities')
 
     def get_serializer_class(self):
@@ -199,6 +207,10 @@ class FieldImageDeleteView(generics.DestroyAPIView):
     serializer_class = FieldImageSerializer
 
     def get_queryset(self):
+        # Swagger schema generation uchun
+        if getattr(self, 'swagger_fake_view', False):
+            return FieldImage.objects.none()
+            
         return self.queryset.filter(field__owner=self.request.user)
 
 

@@ -10,7 +10,7 @@ class FootballField(models.Model):
         null=True, blank=True,
         related_name='owned_fields',
         verbose_name='Egasi (admin)',
-        limit_choices_to={'role': 'admin'},
+        limit_choices_to={'user_role': 'OWNER'},
     )
     name = models.CharField(max_length=200, verbose_name='Nomi')
     description = models.TextField(blank=True, verbose_name='Tavsif')

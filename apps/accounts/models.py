@@ -136,6 +136,14 @@ class MagicToken(models.Model):
     expires_at = models.DateTimeField(
         verbose_name='Amal qilish muddati'
     )
+    usage_count = models.IntegerField(
+        default=0,
+        verbose_name='Ishlatilish soni'
+    )
+    max_usage = models.IntegerField(
+        default=10,  # 10 marta ishlatish mumkin
+        verbose_name='Maksimal ishlatish soni'
+    )
 
     class Meta:
         verbose_name = 'Magic Token'
@@ -147,8 +155,8 @@ class MagicToken(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.expires_at:
-            # 10 daqiqa amal qiladi
-            self.expires_at = timezone.now() + timedelta(minutes=10)
+            # 7 kun amal qiladi (uzaytirildi)
+            self.expires_at = timezone.now() + timedelta(days=7)
         super().save(*args, **kwargs)
 
     @property
@@ -157,7 +165,28 @@ class MagicToken(models.Model):
 
     @property
     def is_valid(self):
-        return not self.is_used and not self.is_expired
+        return not self.is_expired and self.usage_count < self.max_usage
+
+    def use_token(self):
+        """Tokenni ishlatish (usage_count ni oshirish)"""
+        if self.is_valid:
+            self.usage_count += 1
+            self.save()
+            return True
+        return False
+
+    @classmethod
+    def create_or_refresh_token(cls, user):
+        """Foydalanuvchi uchun yangi token yaratish yoki mavjudini yangilash"""
+        # Eski faol tokenlarni o'chirish
+        cls.objects.filter(
+            user=user,
+            expires_at__gt=timezone.now()
+        ).delete()
+        
+        # Yangi token yaratish
+        token = cls.objects.create(user=user)
+        return token
 
 
 class Stadium(models.Model):

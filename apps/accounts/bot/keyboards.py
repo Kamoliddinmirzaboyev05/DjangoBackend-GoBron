@@ -1,6 +1,6 @@
 """Telegram bot klaviaturalari"""
 
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton, WebAppInfo
 
 
 def get_role_selection_keyboard():
@@ -42,24 +42,22 @@ def get_contact_keyboard():
 def get_magic_link_keyboard(token, user_role):
     """Magic Link klaviaturasi"""
     if user_role == 'PLAYER':
-        # Telegram Mini App
+        # Telegram Mini App (Web App)
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
             [
                 InlineKeyboardButton(
                     text="🎮 Ilovani ochish",
-                    web_app={
-                        "url": f"https://t.me/GoBronBot/app?startapp={token}"
-                    }
+                    web_app=WebAppInfo(url=f"https://gobron.webportfolio.uz?token={token}")
                 )
             ]
         ])
     else:  # OWNER
-        # PWA ilovasi
+        # PWA ilovasi (Owner panel)
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
             [
                 InlineKeyboardButton(
                     text="🏢 Boshqaruv paneli",
-                    url=f"https://gobron.uz/verify-auth?token={token}"
+                    url=f"https://gobron.webportfolio.uz?token={token}&role=owner"
                 )
             ]
         ])

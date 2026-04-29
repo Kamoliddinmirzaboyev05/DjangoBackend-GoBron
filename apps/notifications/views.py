@@ -15,6 +15,10 @@ class AdminNotificationListView(generics.ListAPIView):
     serializer_class = NotificationSerializer
 
     def get_queryset(self):
+        # Swagger schema generation uchun
+        if getattr(self, 'swagger_fake_view', False):
+            return Notification.objects.none()
+            
         return Notification.objects.filter(
             recipient=self.request.user,
             is_read=False,

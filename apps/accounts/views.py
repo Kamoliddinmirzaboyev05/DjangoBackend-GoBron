@@ -16,7 +16,11 @@ from .serializers import (
 )
 
 
-@extend_schema(tags=['Auth'])
+@extend_schema(
+    tags=['Auth'],
+    request=MagicTokenSerializer,
+    responses={200: UserSerializer}
+)
 class VerifyMagicTokenView(APIView):
     """Magic Token orqali autentifikatsiya"""
     permission_classes = [AllowAny]
@@ -32,14 +36,24 @@ class VerifyMagicTokenView(APIView):
         try:
             magic_token = MagicToken.objects.get(token=token)
             
+            # Token yaroqliligini tekshirish
             if not magic_token.is_valid:
+                if magic_token.is_expired:
+                    error_msg = 'Token muddati tugagan. Botdan yangi link oling.'
+                elif magic_token.usage_count >= magic_token.max_usage:
+                    error_msg = 'Token ishlatish limiti tugagan. Botdan yangi link oling.'
+                else:
+                    error_msg = 'Token yaroqsiz'
+                
                 return Response({
-                    'error': 'Token yaroqsiz yoki muddati tugagan'
+                    'error': error_msg
                 }, status=status.HTTP_400_BAD_REQUEST)
             
-            # Tokenni ishlatilgan deb belgilash
-            magic_token.is_used = True
-            magic_token.save()
+            # Tokenni ishlatish
+            if not magic_token.use_token():
+                return Response({
+                    'error': 'Token ishlatishda xatolik'
+                }, status=status.HTTP_400_BAD_REQUEST)
             
             # JWT tokenlar yaratish
             user = magic_token.user
@@ -50,11 +64,94 @@ class VerifyMagicTokenView(APIView):
                 'user': UserSerializer(user, context={'request': request}).data,
                 'refresh': str(refresh),
                 'access': str(refresh.access_token),
+                'token_info': {
+                    'usage_count': magic_token.usage_count,
+                    'max_usage': magic_token.max_usage,
+                    'expires_at': magic_token.expires_at.isoformat(),
+                    'remaining_uses': magic_token.max_usage - magic_token.usage_count
+                }
             }, status=status.HTTP_200_OK)
             
         except MagicToken.DoesNotExist:
             return Response({
                 'error': 'Token topilmadi'
+            }, status=status.HTTP_404_NOT_FOUND)
+
+
+@extend_schema(
+    tags=['Auth'],
+    responses={200: UserSerializer}
+)
+class WebAuthView(APIView):
+    """Web sayt uchun Magic Token autentifikatsiya (GET method)"""
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        token = request.GET.get('token')
+        
+        if not token:
+            return Response({
+                'error': 'Token talab qilinadi',
+                'redirect': False
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            magic_token = MagicToken.objects.get(token=token)
+            
+            # Token yaroqliligini tekshirish
+            if not magic_token.is_valid:
+                if magic_token.is_expired:
+                    error_msg = 'Token muddati tugagan. Botdan yangi link oling.'
+                elif magic_token.usage_count >= magic_token.max_usage:
+                    error_msg = 'Token ishlatish limiti tugagan. Botdan yangi link oling.'
+                else:
+                    error_msg = 'Token yaroqsiz'
+                
+                return Response({
+                    'error': error_msg,
+                    'redirect': False,
+                    'expired': True
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Tokenni ishlatish (usage_count ni oshirish)
+            if not magic_token.use_token():
+                return Response({
+                    'error': 'Token ishlatishda xatolik',
+                    'redirect': False
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # JWT tokenlar yaratish
+            user = magic_token.user
+            refresh = RefreshToken.for_user(user)
+            
+            return Response({
+                'success': True,
+                'message': 'Muvaffaqiyatli autentifikatsiya',
+                'user': {
+                    'id': user.id,
+                    'phone_number': user.phone_number,
+                    'full_name': user.full_name,
+                    'user_role': user.user_role,
+                    'telegram_id': user.telegram_id,
+                    'is_phone_verified': user.is_phone_verified,
+                },
+                'tokens': {
+                    'refresh': str(refresh),
+                    'access': str(refresh.access_token),
+                },
+                'token_info': {
+                    'usage_count': magic_token.usage_count,
+                    'max_usage': magic_token.max_usage,
+                    'expires_at': magic_token.expires_at.isoformat(),
+                    'remaining_uses': magic_token.max_usage - magic_token.usage_count
+                },
+                'redirect': True
+            }, status=status.HTTP_200_OK)
+            
+        except MagicToken.DoesNotExist:
+            return Response({
+                'error': 'Token topilmadi. Botdan yangi link oling.',
+                'redirect': False
             }, status=status.HTTP_404_NOT_FOUND)
 
 
@@ -82,6 +179,10 @@ class StadiumListCreateView(generics.ListCreateAPIView):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
+        # Swagger schema generation uchun
+        if getattr(self, 'swagger_fake_view', False):
+            return Stadium.objects.none()
+            
         if self.request.user.is_owner:
             # Maydon egasi faqat o'z stadionlarini ko'radi
             return Stadium.objects.filter(owner=self.request.user)
@@ -102,13 +203,20 @@ class StadiumDetailView(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
+        # Swagger schema generation uchun
+        if getattr(self, 'swagger_fake_view', False):
+            return Stadium.objects.none()
+            
         if self.request.user.is_owner:
             return Stadium.objects.filter(owner=self.request.user)
         else:
             return Stadium.objects.filter(is_active=True)
 
 
-@extend_schema(tags=['Debug'])
+@extend_schema(
+    tags=['Debug'],
+    responses={200: UserSerializer}
+)
 class UserStatsView(APIView):
     """Foydalanuvchi statistikasi (debug uchun)"""
     permission_classes = [IsAuthenticated]
